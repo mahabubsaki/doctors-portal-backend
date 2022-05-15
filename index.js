@@ -18,11 +18,32 @@ async function run() {
     try {
         await client.connect();
         const serviceCollection = client.db('doctorsPortal').collection('services')
+        const bookingCollection = client.db('doctorsPortal').collection('bookings')
         app.get('/services', async (req, res) => {
-            const query = {}
-            const cursor = serviceCollection.find(query)
-            const services = await cursor.toArray()
+            const date = req.query.date
+            const query = { date: date }
+            const services = await serviceCollection.find().toArray()
+            const bookingsThatDay = await bookingCollection.find(query).toArray()
+            services.forEach(service => {
+                const eachServiceBooking = bookingsThatDay.filter(book => book.treatment === service.name)
+                const alreadyBooked = eachServiceBooking.map(each => each.slot)
+                const available = service.slots.filter(eachSlot => !alreadyBooked.includes(eachSlot))
+                service.slots = available
+            })
             res.send(services)
+        })
+        app.post('/bookings', async (req, res) => {
+            const email = req.body.email
+            const name = req.body.name
+            const query = { email: email, name: name }
+            const isDuplicate = await bookingCollection.findOne(query)
+            if (!isDuplicate) {
+                const added = await bookingCollection.insertOne(req.body);
+                res.send(added)
+            }
+            else {
+                res.send({ duplicate: true })
+            }
         })
     }
     finally {
