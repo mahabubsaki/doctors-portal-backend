@@ -20,6 +20,9 @@ async function run() {
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
         app.get('/services', async (req, res) => {
+            if (!req.query.date) {
+                return res.send([])
+            }
             const date = req.query.date
             const query = { date: date }
             const services = await serviceCollection.find().toArray()
@@ -34,15 +37,17 @@ async function run() {
         })
         app.post('/bookings', async (req, res) => {
             const email = req.body.email
-            const name = req.body.name
-            const query = { email: email, name: name }
+            const date = req.body.date
+            const treatment = req.body.treatment
+            const query = { email: email, date: date, treatment: treatment }
             const isDuplicate = await bookingCollection.findOne(query)
+            console.log(isDuplicate);
             if (!isDuplicate) {
                 const added = await bookingCollection.insertOne(req.body);
-                res.send(added)
+                return res.send(added)
             }
             else {
-                res.send({ duplicate: true })
+                return res.send({ duplicate: true })
             }
         })
     }
