@@ -36,6 +36,11 @@ async function run() {
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
         const userCollection = client.db('doctorsPortal').collection('users')
+        app.delete('/deleteUser', async (req, res) => {
+            const query = { email: req.query.email }
+            const result = await userCollection.deleteOne(query)
+            res.send(result)
+        })
         app.put('/makeAdmin', async (req, res) => {
             const filter = { email: req.query.email }
             const updateDoc = {
