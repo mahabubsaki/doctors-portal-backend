@@ -36,6 +36,16 @@ async function run() {
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
         const userCollection = client.db('doctorsPortal').collection('users')
+        app.put('/makeAdmin', async (req, res) => {
+            const filter = { email: req.query.email }
+            const updateDoc = {
+                $set: {
+                    role: req.query.role,
+                }
+            }
+            const result = await userCollection.updateOne(filter, updateDoc)
+            res.send(result)
+        })
         app.post('/all-users', verifyJWT, async (req, res) => {
             res.send(await userCollection.find().toArray())
         })
