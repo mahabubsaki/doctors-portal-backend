@@ -1,4 +1,5 @@
 const express = require('express')
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const cors = require('cors')
 require('dotenv').config()
@@ -14,11 +15,55 @@ app.listen(port, () => {
 })
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wcxgg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+const verifyJWT = async (req, res, next) => {
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+        return res.status(401).send({ message: "Unauthorized Access" })
+    }
+    const token = authHeader.split(' ')[1]
+    jwt.verify(token, process.env.SECRET_KEY, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: "Forbidden Acess" })
+        }
+        req.decodedEmail = decoded.email
+        next()
+    });
+}
 async function run() {
     try {
         await client.connect();
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
+        const userCollection = client.db('doctorsPortal').collection('users')
+        app.get('/token', async (req, res) => {
+            const email = req.query.email
+            const token = jwt.sign({ email: email }, process.env.SECRET_KEY, {
+                expiresIn: "24h"
+            })
+            res.send({ token: token })
+        })
+        app.post('/verify', verifyJWT, async (req, res) => {
+            const email = req.query.email
+            if (email !== req.decodedEmail) {
+                return res.status(403).send({ message: "Forbidden Acess" })
+            }
+            else {
+                return res.send({ message: "Successfull" })
+            }
+        })
+        app.put('/user/:email', async (req, res) => {
+            const email = req.params.email
+            const updateDoc = {
+                $set: {
+                    email: email,
+                },
+            };
+            const filter = { email: email }
+            const options = { upsert: true };
+            const result = await userCollection.updateOne(filter, updateDoc, options)
+            res.send(result)
+        })
         app.get('/services', async (req, res) => {
             if (!req.query.date) {
                 return res.send([])
@@ -46,7 +91,6 @@ async function run() {
             const treatment = req.body.treatment
             const query = { email: email, date: date, treatment: treatment }
             const isDuplicate = await bookingCollection.findOne(query)
-            console.log(isDuplicate);
             if (!isDuplicate) {
                 const added = await bookingCollection.insertOne(req.body);
                 return res.send(added)
