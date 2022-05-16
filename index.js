@@ -36,20 +36,40 @@ async function run() {
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
         const userCollection = client.db('doctorsPortal').collection('users')
-        app.delete('/deleteUser', async (req, res) => {
-            const query = { email: req.query.email }
-            const result = await userCollection.deleteOne(query)
-            res.send(result)
+        app.put('/admin', async (req, res) => {
+            const email = req.query.email
+            const user = await userCollection.findOne({ email: email })
+            const isAdmin = user.role === 'Admin'
+            res.send({ admin: isAdmin })
         })
-        app.put('/makeAdmin', async (req, res) => {
-            const filter = { email: req.query.email }
-            const updateDoc = {
-                $set: {
-                    role: req.query.role,
-                }
+        app.put('/deleteUser', verifyJWT, async (req, res) => {
+            const filter = { email: req.decodedEmail }
+            const requester = await userCollection.findOne(filter)
+            if (requester.role === 'Admin') {
+                const query = { email: req.query.email }
+                const result = await userCollection.deleteOne(query)
+                return res.send(result)
             }
-            const result = await userCollection.updateOne(filter, updateDoc)
-            res.send(result)
+            else {
+                return res.status(401).send({ message: "Unauthorize Access" })
+            }
+        })
+        app.put('/makeAdmin', verifyJWT, async (req, res) => {
+            const query = { email: req.decodedEmail }
+            const requester = await userCollection.findOne(query)
+            if (requester.role === 'Admin') {
+                const filter = { email: req.query.email }
+                const updateDoc = {
+                    $set: {
+                        role: req.query.role,
+                    }
+                }
+                const result = await userCollection.updateOne(filter, updateDoc)
+                return res.send(result)
+            }
+            else {
+                return res.status(401).send({ message: 'Unauthorize Acess' })
+            }
         })
         app.post('/all-users', verifyJWT, async (req, res) => {
             res.send(await userCollection.find().toArray())
@@ -72,7 +92,6 @@ async function run() {
         })
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email
-            console.log(req.body);
             const updateDoc = {
                 $set: {
                     email: email,
