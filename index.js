@@ -36,6 +36,9 @@ async function run() {
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
         const userCollection = client.db('doctorsPortal').collection('users')
+        app.post('/all-users', verifyJWT, async (req, res) => {
+            res.send(await userCollection.find().toArray())
+        })
         app.get('/token', async (req, res) => {
             const email = req.query.email
             const token = jwt.sign({ email: email }, process.env.SECRET_KEY, {
@@ -54,9 +57,12 @@ async function run() {
         })
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email
+            console.log(req.body);
             const updateDoc = {
                 $set: {
                     email: email,
+                    name: req.body.name,
+                    lastLogin: req.body.lastLogin,
                 },
             };
             const filter = { email: email }
