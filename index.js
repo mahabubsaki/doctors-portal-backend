@@ -47,6 +47,11 @@ async function run() {
                 return res.status(401).send({ message: "Unauthorize Access" })
             }
         }
+        app.delete('/delete-doctor', verifyJWT, verifyAdmin, async (req, res) => {
+            const query = { email: req.query.email }
+            const result = await doctorCollection.deleteOne(query)
+            res.send(result)
+        })
         app.get('/all-doctor', verifyJWT, verifyAdmin, async (req, res) => {
             res.send(await doctorCollection.find({}).toArray())
         })
@@ -131,7 +136,7 @@ async function run() {
             })
             res.send(services)
         })
-        app.post('/bookings', verifyJWT, async (req, res) => {
+        app.post('/my-bookings', verifyJWT, async (req, res) => {
             if (req.body.email === req.decodedEmail) {
                 const query = { email: req.query.email }
                 const result = await bookingCollection.find(query).toArray()
