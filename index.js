@@ -47,6 +47,9 @@ async function run() {
                 return res.status(401).send({ message: "Unauthorize Access" })
             }
         }
+        app.get('/all-doctor', verifyJWT, verifyAdmin, async (req, res) => {
+            res.send(await doctorCollection.find({}).toArray())
+        })
         app.post('/add-doctor', verifyJWT, verifyAdmin, async (req, res) => {
             const query = { email: req.body.email }
             const isDuplicate = await doctorCollection.findOne(query)
