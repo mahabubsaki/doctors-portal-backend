@@ -36,42 +36,50 @@ async function run() {
         const serviceCollection = client.db('doctorsPortal').collection('services')
         const bookingCollection = client.db('doctorsPortal').collection('bookings')
         const userCollection = client.db('doctorsPortal').collection('users')
-        app.put('/admin', async (req, res) => {
-            const email = req.query.email
-            const user = await userCollection.findOne({ email: email })
-            const isAdmin = user.role === 'Admin'
-            res.send({ admin: isAdmin })
-        })
-        app.put('/deleteUser', verifyJWT, async (req, res) => {
+        const doctorCollection = client.db('doctorsPortal').collection('doctors')
+        const verifyAdmin = async (req, res, next) => {
             const filter = { email: req.decodedEmail }
             const requester = await userCollection.findOne(filter)
             if (requester.role === 'Admin') {
-                const query = { email: req.query.email }
-                const result = await userCollection.deleteOne(query)
-                return res.send(result)
+                next()
             }
             else {
                 return res.status(401).send({ message: "Unauthorize Access" })
             }
-        })
-        app.put('/makeAdmin', verifyJWT, async (req, res) => {
-            const query = { email: req.decodedEmail }
-            const requester = await userCollection.findOne(query)
-            if (requester.role === 'Admin') {
-                const filter = { email: req.query.email }
-                const updateDoc = {
-                    $set: {
-                        role: req.query.role,
-                    }
-                }
-                const result = await userCollection.updateOne(filter, updateDoc)
-                return res.send(result)
+        }
+        app.post('/add-doctor', verifyJWT, verifyAdmin, async (req, res) => {
+            const query = { email: req.body.email }
+            const isDuplicate = await doctorCollection.findOne(query)
+            if (!isDuplicate) {
+                const result = await doctorCollection.insertOne(req.body)
+                res.send(result)
             }
             else {
-                return res.status(401).send({ message: 'Unauthorize Acess' })
+                res.send({ message: 'Duplicate Found' })
             }
         })
-        app.post('/all-users', verifyJWT, async (req, res) => {
+        app.put('/admin', async (req, res) => {
+            const email = req.query.email
+            const user = await userCollection.findOne({ email: email })
+            const isAdmin = user?.role === 'Admin'
+            res.send({ admin: isAdmin })
+        })
+        app.put('/deleteUser', verifyJWT, verifyAdmin, async (req, res) => {
+            const query = { email: req.query.email }
+            const result = await userCollection.deleteOne(query)
+            return res.send(result)
+        })
+        app.put('/makeAdmin', verifyJWT, verifyAdmin, async (req, res) => {
+            const filter = { email: req.query.email }
+            const updateDoc = {
+                $set: {
+                    role: req.query.role,
+                }
+            }
+            const result = await userCollection.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+        app.post('/all-users', verifyJWT, verifyAdmin, async (req, res) => {
             res.send(await userCollection.find().toArray())
         })
         app.get('/token', async (req, res) => {
@@ -120,10 +128,15 @@ async function run() {
             })
             res.send(services)
         })
-        app.get('/bookings', async (req, res) => {
-            const query = { email: req.query.email }
-            const result = await bookingCollection.find(query).toArray()
-            res.send(result)
+        app.post('/bookings', verifyJWT, async (req, res) => {
+            if (req.body.email === req.decodedEmail) {
+                const query = { email: req.query.email }
+                const result = await bookingCollection.find(query).toArray()
+                return res.send(result)
+            }
+            else {
+                return res.status(401).send({ message: "Unauthorize Access" })
+            }
         })
         app.post('/bookings', async (req, res) => {
             const email = req.body.email
