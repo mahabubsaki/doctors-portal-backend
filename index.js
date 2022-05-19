@@ -47,6 +47,16 @@ async function run() {
                 return res.status(401).send({ message: "Unauthorize Access" })
             }
         }
+        app.get('/payment', verifyJWT, async (req, res) => {
+            const query = { id: req.query.id }
+            const result = await bookingCollection.findOne(query)
+            if (result) {
+                return res.send(result)
+            }
+            else {
+                return res.status(404).send({ message: "Not Found" })
+            }
+        })
         app.delete('/delete-doctor', verifyJWT, verifyAdmin, async (req, res) => {
             const query = { email: req.query.email }
             const result = await doctorCollection.deleteOne(query)
